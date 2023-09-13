@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script
+        src="https://unpkg.com/braintree-isomorphic-functions@1.0.14/lib/braintree-isomorphic-functions.js"></script>
+    <script src="https://unpkg.com/paypal-isomorphic-functions@1.0.19/lib/paypal-isomorphic-functions.js"></script>
+    <script src="https://js.braintreegateway.com/web/3.78.2/js/client.min.js"></script>
+    <script src="https://js.braintreegateway.com/web/3.78.2/js/data-collector.min.js"></script>
+    <script src="https://js.braintreegateway.com/web/3.78.2/js/paypal-checkout.min.js"></script>
+    <title>PayPal Messaging in iFrame</title>
+    <style>
+        #paypal-button {
+            height: 200px;
+            width: 200px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Hello</h1>
+    <div id="paypal-button"></div>
+    <div data-pp-message data-pp-amount="100.00">
+    </div>
+    <script type="text/javascript">
+        function clickButton() {
+            var e = document.getElementsByClassName("component-frame");
+            console.log(e[0]);
+            console.log(e[0].contentWindow.document.getElementsByClassName("paypal-button")[0]);
+        }
+
+        localStorage.setItem('PAYPAL_CLIENT_ID', 'AXhXrNsmGJ0H1fNQWdyqN_WwDKBatx54nyYVWY8iCR0P3HUyUMGPwAz1VCK30z5E3vxXLgPNJoHgV9ne');
+        localStorage.setItem('PAYPAL_CLIENT_SECRET', 'EPatRVDnem0lkev53qaqASKmH_VNwUiYuZAvlCs5WLJ7mEM_BO7VWpmdl2ida-XnOqfvIAvHDz-u3xka');
+        localStorage.setItem('PAYPAL_ENVIRONMENT', 'sandbox');
+
+        localStorage.setItem('BRAINTREE_PUBLIC_KEY', '7tm6fbq8wf2zy27w');
+        localStorage.setItem('BRAINTREE_PRIVATE_KEY', 'ddff0f69defa38b9b4acb1da17f424a3');
+        localStorage.setItem('BRAINTREE_GATEWAY_ID', 'pskbbnw9wf32zq25');
+
+        localStorage.setItem('BRAINTREE_ENVIRONMENT', 'sandbox');
+        localStorage.setItem('BRAINTREE_TOKENIZATION_KEY', 'sandbox_vk3n2g66_pskbbnw9wf32zq25');
+        const MERCHANT_ACCOUNT_IDS = {
+            'USD': 'btUSD'
+        };
+
+        let currency = 'USD';
+
+        braintreeFunctions.ClientToken.create({ merchantAccountId: MERCHANT_ACCOUNT_IDS[currency] })
+            .then(res => res.json())
+            .then(res => renderPayPalButton(res.data.createClientToken.clientToken));
+
+        function renderPayPalButton(authorization) {
+            console.log("token", window.atob(authorization));
+            return braintree.client.create({
+                authorization: localStorage.getItem('BRAINTREE_TOKENIZATION_KEY')
+            }, function (err, clientInstance) {
+                // Creation of any other components...
+                // Create a PayPal Checkout component.
+                braintree.paypalCheckout.create({
+                    client: clientInstance,
+                    // merchantAccountId: MERCHANT_ACCOUNT_IDS[currency],
+                }, function (paypalCheckoutErr, paypalCheckoutInstance) {
+                    console.log("instance", paypalCheckoutInstance)
+                    paypalCheckoutInstance.loadPayPalSDK({
+                        vault: false,
+                        intent: "capture",
+                        commit: false,
+                        "disable-funding": "card",
+                        components: 'buttons,messages'
+                    }, function (loadSDKErr) {
+                        paypal.Buttons({
+                            fundingSource: paypal.FUNDING.PAYLATER.PAYPAL,
+                            style: {
+                                layout: 'vertical',
+                                tagline: "false",/*
+            label: "paypal", //options: checkout, buynow, pay
+            shape: "rect", //options: pill
+            color: "white", //options: blue, silver, white, black*/
+                                disableMaxWidth: true
+                            },
+                            createOrder: function () {
+                                return paypalCheckoutInstance.createPayment({
+                                    intent: "capture",
+                                    flow: 'checkout', // Required
+                                    amount: 100.00, // Required
+                                    currency: 'USD', // Required
+                                    requestBillingAgreement: true,
+                                    // The following are optional params
+                                    billingAgreementDescription: 'Your agreement description',
+                                    enableShippingAddress: true,
+                                });
+                            },
+
+                            onApprove: function (data, actions) {
+                                console.log('PayPal Data', data);
+                                return paypalCheckoutInstance.tokenizePayment(data, function (err, payload) {
+                                    document.getElementById('nonce').innerHTML = payload.nonce;
+                                    return braintreeFunctions
+                                        .Payments
+                                        .chargePayPalAccount({
+                                            id: payload.nonce, data: {
+                                                amount,
+                                                merchantAccountId: MERCHANT_ACCOUNT_IDS[currency],
+
+                                            }
+                                        })
+                                        .then(res => res.json())
+                                        .then(res => {
+                                            document.getElementById('result').innerHTML = JSON.stringify(res);
+                                            return res.data.chargePayPalAccount.billingAgreementWithPurchasePaymentMethod.customer.id
+                                        })
+
+                                });
+
+                            },
+                            onCancel: function (data) {
+                                console.log('PayPal payment cancelled', JSON.stringify(data, 0, 2));
+                            },
+
+                            onError: function (err) {
+                                console.error('PayPal error', err);
+                            }
+                        }).render('#paypal-button').then(function () {
+                            // The PayPal button will be rendered in an html element with the ID
+                            // `paypal-button`. This function will be called when the PayPal button
+                            // is set up and ready to be used
+                        });
+                    });
+                    if (paypalCheckoutErr) {
+                        console.error('Error creating PayPal Checkout:', paypalCheckoutErr);
+                        return;
+                    }
+
+                    // Load the PayPal JS SDK (see Load the PayPal JS SDK section)
+                });
+            });
+        }
+    </script>
+
+</body>
+
+</html>
