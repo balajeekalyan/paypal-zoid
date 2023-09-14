@@ -8,20 +8,24 @@
     <script src="https://js.braintreegateway.com/web/3.78.2/js/client.min.js"></script>
     <script src="https://js.braintreegateway.com/web/3.78.2/js/data-collector.min.js"></script>
     <script src="https://js.braintreegateway.com/web/3.78.2/js/paypal-checkout.min.js"></script>
-    <title>PayPal Messaging in iFrame</title>
+    <script src="http://krakenjs.com/zoid/dist/zoid.js"></script>
+    <script src="paypal_zoid.js"></script>
+    <title>Standalone PayPal</title>
     <style>
         #paypal-button {
             height: 200px;
             width: 200px;
         }
+        body {
+            background-color: rgb(221, 218, 218);
+        }
     </style>
 </head>
 
 <body>
-    <h1>Hello</h1>
+    <h3>Hello from paypal.html</h3>
+    <div data-pp-message data-pp-amount="100.00"></div>
     <div id="paypal-button"></div>
-    <div data-pp-message data-pp-amount="100.00">
-    </div>
     <script type="text/javascript">
         function clickButton() {
             var e = document.getElementsByClassName("component-frame");
